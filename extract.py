@@ -1,9 +1,9 @@
 import os
 import shutil
 
-input_dir = "data/lfw-deepfunneled/lfw-deepfunneled"
-output_dir = "data/lfw_filtered"
-min_images = 5
+input_dir = "data/lfw_filtered"
+output_dir = "data/lfw_filtered10"
+min_images =10
 
 # limpar pasta de saída
 if os.path.exists(output_dir):

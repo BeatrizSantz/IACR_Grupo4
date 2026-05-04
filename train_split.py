@@ -1,10 +1,10 @@
 import splitfolders
 
 
-pasta_origem = "data/lfw_filtered"
-pasta_destino = "data/dataset_5"
+pasta_origem = "data/lfw_filtered10"
+pasta_destino = "data/dataset_10cd"
 
-# Divide o dataset: 80% para treino e 20% para validação
+
 splitfolders.ratio(pasta_origem, 
                    output=pasta_destino, 
                    seed=42, 
