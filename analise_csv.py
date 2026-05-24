@@ -1,38 +1,43 @@
 import pandas as pd
 
-files = {
-    "min5_frozen": "resultados_explicabilidade_dataset_5_frozen.csv",
-    "min5_ft": "resultados_explicabilidade_dataset_5_FT.csv",
-    "min10_frozen": "resultados_explicabilidade_dataset_10_frozen.csv",
-    "min10_ft": "resultados_explicabilidade_dataset_10_FT.csv"
+ficheiros = {
+    "min5_frozen": "resultados/resultados_explicabilidade_dataset_5_frozen.csv",
+    "min5_ft": "resultados/resultados_explicabilidade_dataset_5_FT.csv",
+    "min10_frozen": "resultados/resultados_explicabilidade_dataset_10_frozen.csv",
+    "min10_ft": "resultados/resultados_explicabilidade_dataset_10_FT.csv",
+
+    "min5_frozen_recortado": "resultados/resultados_explicabilidade_dataset_5_frozen_recortado.csv",
+    "min5_ft_recortado": "resultados/resultados_explicabilidade_dataset_5_FT_recortado.csv",
+    "min10_frozen_recortado": "resultados/resultados_explicabilidade_dataset_10_frozen_recortado.csv",
+    "min10_ft_recortado": "resultados/resultados_explicabilidade_dataset_10_FT_recortado.csv"
 }
 
 resultados = []
 
-for nome_modelo, ficheiro in files.items():
+for nome_modelo, ficheiro in ficheiros.items():
 
     df = pd.read_csv(ficheiro)
 
-    correct = df[df["correta"] == 1]
-    incorrect = df[df["correta"] == 0]
+    corretas = df[df["correta"] == 1]
+    incorretas = df[df["correta"] == 0]
 
-    # MÉDIAS CORRETAS
-    olhos_c = correct["olhos"].mean()
-    nariz_c = correct["nariz"].mean()
-    boca_c = correct["boca"].mean()
-    fundo_c = correct["fundo"].mean()
+    # médias das corretas
+    olhos_c = corretas["olhos"].mean()
+    nariz_c = corretas["nariz"].mean()
+    boca_c = corretas["boca"].mean()
+    fundo_c = corretas["fundo"].mean()
 
-    # MÉDIAS INCORRETAS
-    olhos_i = incorrect["olhos"].mean()
-    nariz_i = incorrect["nariz"].mean()
-    boca_i = incorrect["boca"].mean()
-    fundo_i = incorrect["fundo"].mean()
+    # médias das incorretas
+    olhos_i = incorretas["olhos"].mean()
+    nariz_i = incorretas["nariz"].mean()
+    boca_i = incorretas["boca"].mean()
+    fundo_i = incorretas["fundo"].mean()
 
-    # FACE TOTAL
+    # cara total
     face_total_c = olhos_c + nariz_c + boca_c
     face_total_i = olhos_i + nariz_i + boca_i
 
-    # NÃO FACE
+    # sem ser a cara
     nao_face_c = 100 - face_total_c
     nao_face_i = 100 - face_total_i
 
@@ -41,8 +46,8 @@ for nome_modelo, ficheiro in files.items():
 
         "accuracy": df["correta"].mean() * 100,
 
-        "num_corretas": len(correct),
-        "num_incorretas": len(incorrect),
+        "num_corretas": len(corretas),
+        "num_incorretas": len(incorretas),
 
         "olhos_corretas": olhos_c,
         "nariz_corretas": nariz_c,

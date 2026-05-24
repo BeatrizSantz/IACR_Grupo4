@@ -7,10 +7,10 @@ from torch import nn
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-DATASET_PATH = "data/dataset_5/val"
-MODEL_PATH = "modelo_min5_dataset_frozen.pth"
+dataset = "data_recortado/dataset_5_recortado/val"
+modelo = "modelo_min5_dataset_frozen_recortado.pth"
 
-classes = sorted(os.listdir(DATASET_PATH))
+classes = sorted(os.listdir(dataset))
 
 class_to_idx = {
     cls_name: idx
@@ -25,7 +25,7 @@ modelo = InceptionResnetV1(
 modelo.logits = nn.Linear(512, len(classes)).to(DEVICE)
 
 modelo.load_state_dict(
-    torch.load(MODEL_PATH, map_location=DEVICE)
+    torch.load(modelo, map_location=DEVICE)
 )
 
 modelo.eval()
@@ -39,12 +39,12 @@ transformacoes = transforms.Compose([
     )
 ])
 
-correct = []
-incorrect = []
+corretas = []
+incorretas = []
 
 for pessoa in classes:
 
-    pasta_pessoa = os.path.join(DATASET_PATH, pessoa)
+    pasta_pessoa = os.path.join(dataset, pessoa)
 
     for nome_img in os.listdir(pasta_pessoa):
 
@@ -63,12 +63,12 @@ for pessoa in classes:
             label_real = class_to_idx[pessoa]
 
             if pred == label_real:
-                correct.append(caminho)
+                corretas.append(caminho)
             else:
-                incorrect.append(caminho)
+                incorretas.append(caminho)
 
         except:
             pass
 
-print(f"Corretas: {len(correct)}")
-print(f"Incorretas: {len(incorrect)}")
+print(f"Corretas: {len(corretas)}")
+print(f"Incorretas: {len(incorretas)}")

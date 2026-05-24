@@ -1,5 +1,7 @@
 import os
 import csv
+import cv2
+import shutil
 import torch
 import numpy as np
 
@@ -11,185 +13,321 @@ from facenet_pytorch import InceptionResnetV1
 
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-DATASET_PATH = "data/dataset_5/val"
+configs = [
 
-MODEL_PATH = "modelo_min5_dataset_frozen.pth"
+    {
+        "nome": "min5_frozen",
+        "dataset": "data/dataset_5/val",
+        "modelo": "modelo_min5_dataset_frozen.pth"
+    },
 
-CSV_OUTPUT = "resultados_explicabilidade_dataset_5_frozen.csv"
+    {
+        "nome": "min5_FT",
+        "dataset": "data/dataset_5/val",
+        "modelo": "modelo_min5_dataset_FT.pth"
+    },
 
-classes = sorted(os.listdir(DATASET_PATH))
+    {
+        "nome": "min10_frozen",
+        "dataset": "data/dataset_10/val",
+        "modelo": "modelo_min10_dataset_frozen.pth"
+    },
 
-class_to_idx = {
-    cls_name: idx
-    for idx, cls_name in enumerate(classes)
-}
+    {
+        "nome": "min10_FT",
+        "dataset": "data/dataset_10/val",
+        "modelo": "modelo_min10_dataset_FT.pth"
+    },
+
+    # Dataset recortado
+
+    {
+        "nome": "min5_frozen_recortado",
+        "dataset": "data_recortado/dataset_5_recortado/val",
+        "modelo": "modelo_min5_dataset_frozen_recortado.pth"
+    },
+
+    {
+        "nome": "min5_FT_recortado",
+        "dataset": "data_recortado/dataset_5_recortado/val",
+        "modelo": "modelo_min5_dataset_FT_recortado.pth"
+    },
+
+    {
+        "nome": "min10_frozen_recortado",
+        "dataset": "data_recortado/dataset_10_recortado/val",
+        "modelo": "modelo_min10_dataset_frozen_recortado.pth"
+    },
+
+    {
+        "nome": "min10_FT_recortado",
+        "dataset": "data_recortado/dataset_10_recortado/val",
+        "modelo": "modelo_min10_dataset_FT_recortado.pth"
+    }
+
+]
 
 transformacoes = transforms.Compose([
-    transforms.Resize((160, 160)),
+    transforms.Resize((160, 160)), # todas as imagens ficam 160x160
     transforms.ToTensor(),
     transforms.Normalize(
-        mean=[0.5, 0.5, 0.5],
-        std=[0.5, 0.5, 0.5]
+        mean=[0.5]*3,
+        std=[0.5]*3
     )
 ])
 
-modelo = InceptionResnetV1(
-    pretrained='vggface2',
-    classify=True
-).to(DEVICE)
+os.makedirs("resultados", exist_ok=True) # pasta csvs
+os.makedirs("heatmaps", exist_ok=True) # pasta heatmaps
 
-modelo.logits = nn.Linear(512, len(classes)).to(DEVICE)
+for config in configs:
 
-modelo.load_state_dict(
-    torch.load(MODEL_PATH, map_location=DEVICE)
-)
+    caminho_dataset = config["dataset"]
+    caminho_modelo = config["modelo"]
 
-modelo.eval()
+    output_csv = f"resultados/resultados_explicabilidade_{config['nome']}.csv"
 
-target_layers = [modelo.block8.branch1]
+    heatmap_dir = f"heatmaps/{config['nome']}"
 
-cam = GradCAM(
-    model=modelo,
-    target_layers=target_layers
-)
+    if os.path.exists(heatmap_dir): # remove pasta antiga se existir
+        shutil.rmtree(heatmap_dir)
 
-with open(CSV_OUTPUT, mode='w', newline='', encoding='utf-8') as file:
+    os.makedirs(heatmap_dir) # cria pasta nova
 
-    writer = csv.writer(file)
+    classes = sorted(os.listdir(caminho_dataset)) # cada pasta corresponde a uma pessoa
 
-    writer.writerow([
-        "imagem",
-        "real",
-        "pred",
-        "confidence",
-        "correta",
-        "olhos",
-        "nariz",
-        "boca",
-        "fundo"
-    ])
+    class_to_idx = { # nome da pessoa corresponde a um indice numérico
+        cls_name: idx
+        for idx, cls_name in enumerate(classes)
+    }
 
-    contador = 0
-    corretas = 0
-    incorretas = 0
+    modelo = InceptionResnetV1(
+        pretrained='vggface2',
+        classify=True
+    ).to(DEVICE)
 
-    for pessoa in classes:
+    modelo.logits = nn.Linear(
+        512,
+        len(classes)
+    ).to(DEVICE)
 
-        pasta_pessoa = os.path.join(DATASET_PATH, pessoa)
+    modelo.load_state_dict( # carrega os pesos treinados
+        torch.load(
+            caminho_modelo,
+            map_location=DEVICE
+        )
+    )
 
-        if not os.path.isdir(pasta_pessoa):
-            continue
+    modelo.eval()
 
-        for nome_img in os.listdir(pasta_pessoa):
+    target_layers = [modelo.block8.branch1]
 
-            caminho = os.path.join(pasta_pessoa, nome_img)
+    cam = GradCAM(
+        model=modelo,
+        target_layers=target_layers
+    )
 
-            try:
+    with open(output_csv, mode='w', newline='', encoding='utf-8') as file:
 
-                img = Image.open(caminho).convert('RGB')
+        writer = csv.writer(file)
 
-                input_tensor = transformacoes(img).unsqueeze(0).to(DEVICE)
+        writer.writerow([
+            "imagem",
+            "real",
+            "classe_prevista",
+            "confianca",
+            "correta",
+            "olhos",
+            "nariz",
+            "boca",
+            "fundo"
+        ])
 
-                output = modelo(input_tensor)
+        contador = 0
+        corretas = 0
+        incorretas = 0
 
-                pred = output.argmax(dim=1).item()
+        for pessoa in classes:
 
-                label_real = class_to_idx[pessoa]
+            pasta_pessoa = os.path.join(
+                caminho_dataset,
+                pessoa
+            )
 
-                prob = torch.softmax(output, dim=1)
+            if not os.path.isdir(pasta_pessoa):
+                continue
 
-                confidence = prob[0][pred].item()
+            for nome_img in os.listdir(pasta_pessoa):
 
-                correta = int(pred == label_real)
-
-                if correta:
-                    corretas += 1
-                else:
-                    incorretas += 1
-
-                targets = [ClassifierOutputTarget(pred)]
-
-                grayscale_cam = cam(
-                    input_tensor=input_tensor,
-                    targets=targets
+                caminho = os.path.join(
+                    pasta_pessoa,
+                    nome_img
                 )
 
-                cam_map = grayscale_cam[0]
+                try:
 
-                h, w = cam_map.shape
+                    img = Image.open(caminho).convert('RGB')
 
-                mask_olhos = np.zeros((h, w))
-                mask_nariz = np.zeros((h, w))
-                mask_boca = np.zeros((h, w))
-                mask_fundo = np.ones((h, w))
+                    input_tensor = transformacoes(img)
+                    input_tensor = input_tensor.unsqueeze(0).to(DEVICE)
 
-                # olhos
-                mask_olhos[30:70, 35:125] = 1
+                    output = modelo(input_tensor)
 
-                # nariz
-                mask_nariz[65:105, 55:105] = 1
+                    classe_prevista = output.argmax(dim=1).item()
 
-                # boca
-                mask_boca[100:140, 45:115] = 1
+                    classe_verdadeira = class_to_idx[pessoa]
 
-                # fundo
-                mask_fundo -= (
-                    mask_olhos +
-                    mask_nariz +
-                    mask_boca
-                )
+                    prob = torch.softmax(output, dim=1)
 
-                mask_fundo = np.clip(mask_fundo, 0, 1)
+                    confianca = prob[0][classe_prevista].item()
 
-                olhos_score = np.sum(cam_map * mask_olhos)
-                nariz_score = np.sum(cam_map * mask_nariz)
-                boca_score = np.sum(cam_map * mask_boca)
-                fundo_score = np.sum(cam_map * mask_fundo)
+                    correta = int(classe_prevista == classe_verdadeira) # verfica se acertou 
 
-                total = (
-                    olhos_score +
-                    nariz_score +
-                    boca_score +
-                    fundo_score
-                )
+                    if correta:
+                        corretas += 1
+                    else:
+                        incorretas += 1
 
-                olhos_pct = 100 * olhos_score / total
-                nariz_pct = 100 * nariz_score / total
-                boca_pct = 100 * boca_score / total
-                fundo_pct = 100 * fundo_score / total
+                    targets = [ClassifierOutputTarget(classe_prevista)]
 
-                writer.writerow([
-                    caminho,
-                    pessoa,
-                    classes[pred],
-                    confidence,
-                    correta,
-                    olhos_pct,
-                    nariz_pct,
-                    boca_pct,
-                    fundo_pct
-                ])
+                    grayscale_cam = cam(
+                        input_tensor=input_tensor,
+                        targets=targets
+                    )
 
-                contador += 1
+                    cam_map = grayscale_cam[0]
 
-                if contador % 50 == 0:
-                    print(f"{contador} imagens processadas")
+                    img_resized = img.resize((160,160))
 
-            except Exception as e:
+                    img_np = np.array(img_resized).astype(np.float32) / 255.0
 
-                print(f"Erro em {caminho}")
-                print(e)
+                    visualization = show_cam_on_image(
+                        img_np,
+                        cam_map,
+                        use_rgb=True
+                    )
 
-accuracy = 100 * corretas / (corretas + incorretas)
+                    tipo = "corretas" if correta else "incorretas"
 
-print("RESULTADOS FINAIS")
+                    pasta_saida = os.path.join(
+                        heatmap_dir,
+                        tipo,
+                        pessoa
+                    )
 
-print(f"Total: {corretas + incorretas}")
-print(f"Corretas: {corretas}")
-print(f"Incorretas: {incorretas}")
-print(f"Accuracy: {accuracy:.2f}%")
+                    os.makedirs(
+                        pasta_saida,
+                        exist_ok=True
+                    )
 
-print(f"\nCSV guardado em: {CSV_OUTPUT}")
+                    caminho_saida = os.path.join(
+                        pasta_saida,
+                        nome_img
+                    )
+
+                    cv2.imwrite(
+                        caminho_saida,
+                        cv2.cvtColor(
+                            visualization,
+                            cv2.COLOR_RGB2BGR
+                        )
+                    )
+
+                    h, w = cam_map.shape
+
+                    mask_olhos = np.zeros((h, w))
+                    mask_nariz = np.zeros((h, w))
+                    mask_boca = np.zeros((h, w))
+                    mask_fundo = np.ones((h, w))
+
+                    # olhos
+                    mask_olhos[30:70, 35:125] = 1
+
+                    # nariz
+                    mask_nariz[65:105, 55:105] = 1
+
+                    # boca
+                    mask_boca[100:140, 45:115] = 1
+
+                    # fundo
+                    mask_fundo -= (
+                        mask_olhos +
+                        mask_nariz +
+                        mask_boca
+                    )
+
+                    mask_fundo = np.clip(
+                        mask_fundo,
+                        0,
+                        1
+                    )
+                    # ativações
+                    olhos_score = np.sum(
+                        cam_map * mask_olhos
+                    )
+
+                    nariz_score = np.sum(
+                        cam_map * mask_nariz
+                    )
+
+                    boca_score = np.sum(
+                        cam_map * mask_boca
+                    )
+
+                    fundo_score = np.sum(
+                        cam_map * mask_fundo
+                    )
+
+                    total = (
+                        olhos_score +
+                        nariz_score +
+                        boca_score +
+                        fundo_score
+                    )
+
+                    # evitar divisão por zero
+                    if total == 0:
+                        continue
+
+                    olhos_pct = 100 * olhos_score / total
+                    nariz_pct = 100 * nariz_score / total
+                    boca_pct = 100 * boca_score / total
+                    fundo_pct = 100 * fundo_score / total
+
+                    writer.writerow([
+                        caminho,
+                        pessoa,
+                        classes[classe_prevista],
+                        confianca,
+                        correta,
+                        olhos_pct,
+                        nariz_pct,
+                        boca_pct,
+                        fundo_pct
+                    ])
+
+                    contador += 1
+
+                    if contador % 50 == 0:
+
+                        print(
+                            f"{contador} imagens processadas"
+                        )
+
+                except Exception as e:
+
+                    print(f"\nErro em: {caminho}")
+                    print(e)
+
+    total_imgs = corretas + incorretas
+
+    accuracy = 100 * corretas / total_imgs
+
+    print(f"Total: {total_imgs}")
+    print(f"Corretas: {corretas}")
+    print(f"Incorretas: {incorretas}")
+    print(f"Accuracy: {accuracy:.2f}%")
+

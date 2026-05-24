@@ -1,115 +1,285 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 
-PASTA_RESULTADOS = "resultados"
+resultados = "resultados"
+graficos = "graficos_resultados"
 
-PASTA_GRAFICOS = "graficos"
+os.makedirs(graficos, exist_ok=True)
 
-os.makedirs(PASTA_GRAFICOS, exist_ok=True)
+df = pd.read_csv(
+    os.path.join(
+        resultados,
+        "resumo_explicabilidade.csv"
+    )
+)
 
-csvs = [
-    f for f in os.listdir(PASTA_RESULTADOS)
-    if f.endswith(".csv")
-    and "resultados_explicabilidade" in f
+nomes = [
+    "Min5\nFrozen",
+    "Min5\nFT",
+    "Min10\nFrozen",
+    "Min10\nFT",
+    "Min5\nFrozen\nRec",
+    "Min5\nFT\nRec",
+    "Min10\nFrozen\nRec",
+    "Min10\nFT\nRec"
 ]
 
-print(f"{len(csvs)} CSVs")
+x = np.arange(len(nomes))
 
-def guardar(nome):
+# accuracy 
 
-    caminho = os.path.join(PASTA_GRAFICOS, nome)
+plt.figure(figsize=(12,6))
 
-    plt.tight_layout()
-    plt.savefig(caminho, dpi=300)
+bars = plt.bar(
+    x,
+    df["accuracy"]
+)
 
-    plt.close()
+plt.xticks(x, nomes)
 
-for csv_file in csvs:
+plt.ylabel("Accuracy (%)")
 
-    caminho_csv = os.path.join(PASTA_RESULTADOS, csv_file)
+plt.title(
+    "Accuracy dos Modelos",
+    fontsize=14,
+    fontweight='bold'
+)
 
-    print(f"\nProcessando: {csv_file}")
+plt.ylim(0,100)
 
-    df = pd.read_csv(caminho_csv)
+for bar in bars:
 
-    nome = csv_file.replace(".csv", "")
+    y = bar.get_height()
 
-    if "correta" in df.columns:
+    plt.text(
+        bar.get_x() + bar.get_width()/2,
+        y + 1,
+        f"{y:.1f}%",
+        ha='center'
+    )
 
-        accuracy = df["correta"].mean() * 100
+plt.grid(axis='y', linestyle='--', alpha=0.3)
 
-        plt.figure(figsize=(5,5))
+plt.tight_layout()
 
-        plt.bar(["Accuracy"], [accuracy])
+plt.savefig(
+    f"{graficos}/01_accuracy_modelos.png",
+    dpi=300
+)
 
-        plt.ylim(0, 100)
+plt.close()
 
-        plt.ylabel("Percentagem (%)")
+# cara vs fundo
+face = df["face_total_corretas"]
+fundo = df["nao_face_corretas"]
 
-        plt.title(f"Accuracy\n{nome}")
+plt.figure(figsize=(12,6))
 
-        guardar(f"{nome}_accuracy.png")
+plt.bar(
+    x,
+    face,
+    label="Face Interna"
+)
 
-        print(f"Accuracy: {accuracy:.2f}%")
+plt.bar(
+    x,
+    fundo,
+    bottom=face,
+    label="Face Externa / Fundo"
+)
 
-    regioes = ["olhos", "nariz", "boca", "fundo"]
+plt.xticks(x, nomes)
 
-    if all(r in df.columns for r in regioes):
+plt.ylabel("Ativação Média (%)")
 
-        medias = [df[r].mean() for r in regioes]
+plt.title(
+    "Distribuição da Atenção do Modelo",
+    fontsize=14,
+    fontweight='bold'
+)
 
-        plt.figure(figsize=(8,5))
+plt.ylim(0,100)
 
-        plt.bar(regioes, medias)
+plt.legend()
 
-        plt.ylabel("Ativação Média")
+plt.grid(axis='y', linestyle='--', alpha=0.3)
 
-        plt.title(f"Atenção por Região\n{nome}")
+plt.tight_layout()
 
-        guardar(f"{nome}_regioes.png")
+plt.savefig(
+    f"{graficos}/02_face_vs_fundo.png",
+    dpi=300
+)
 
-        print("Gráfico de regiões criado")
+plt.close()
 
-    if "confidence" in df.columns:
+# regiões da cara
+olhos = df["olhos_corretas"]
+nariz = df["nariz_corretas"]
+boca = df["boca_corretas"]
 
-        plt.figure(figsize=(8,5))
+plt.figure(figsize=(12,6))
 
-        plt.hist(df["confidence"], bins=20)
+plt.bar(
+    x,
+    olhos,
+    label="Olhos"
+)
 
-        plt.xlabel("Confidence")
+plt.bar(
+    x,
+    nariz,
+    bottom=olhos,
+    label="Nariz"
+)
 
-        plt.ylabel("Número de Imagens")
+plt.bar(
+    x,
+    boca,
+    bottom=olhos + nariz,
+    label="Boca"
+)
 
-        plt.title(f"Distribuição da Confiança\n{nome}")
+plt.xticks(x, nomes)
 
-        guardar(f"{nome}_confidence.png")
+plt.ylabel("Ativação Média (%)")
 
-        print("Histograma criado")
+plt.title(
+    "Distribuição da Atenção Facial",
+    fontsize=14,
+    fontweight='bold'
+)
 
-    if "fundo" in df.columns and "correta" in df.columns:
+plt.legend()
 
-        corretos = df[df["correta"] == 1]
-        erros = df[df["correta"] == 0]
+plt.grid(axis='y', linestyle='--', alpha=0.3)
 
-        if len(corretos) > 0 and len(erros) > 0:
+plt.tight_layout()
 
-            valores = [
-                corretos["fundo"].mean(),
-                erros["fundo"].mean()
-            ]
+plt.savefig(
+    f"{graficos}/03_regioes_faciais.png",
+    dpi=300
+)
 
-            labels = ["Corretos", "Incorretos"]
+plt.close()
 
-            plt.figure(figsize=(6,5))
+# imagens corretas vs incorretas
+w = 0.35
 
-            plt.bar(labels, valores)
+plt.figure(figsize=(12,6))
 
-            plt.ylabel("Ativação Média no Fundo")
+plt.bar(
+    x - w/2,
+    df["face_total_corretas"],
+    width=w,
+    label="Corretas"
+)
 
-            plt.title(f"Dependência do Fundo\n{nome}")
+plt.bar(
+    x + w/2,
+    df["face_total_incorretas"],
+    width=w,
+    label="Incorretas"
+)
 
-            guardar(f"{nome}_fundo.png")
+plt.xticks(x, nomes)
 
-            print("Gráfico do fundo criado")
+plt.ylabel("Ativação Facial (%)")
 
+plt.title(
+    "Corretas vs Incorretas",
+    fontsize=14,
+    fontweight='bold'
+)
+
+plt.legend()
+
+plt.grid(axis='y', linestyle='--', alpha=0.3)
+
+plt.tight_layout()
+
+plt.savefig(
+    f"{graficos}/04_corretas_vs_incorretas.png",
+    dpi=300
+)
+
+plt.close()
+# accuracy vs atenção
+plt.figure(figsize=(8,6))
+
+plt.scatter(
+    df["face_total_corretas"],
+    df["accuracy"],
+    s=120
+)
+
+for i, nome in enumerate(nomes):
+
+    plt.text(
+        df["face_total_corretas"][i] + 0.2,
+        df["accuracy"][i],
+        nome.replace("\n"," ")
+    )
+
+plt.xlabel("Ativação Facial (%)")
+
+plt.ylabel("Accuracy (%)")
+
+plt.title(
+    "Accuracy vs Atenção Facial",
+    fontsize=14,
+    fontweight='bold'
+)
+
+plt.grid(alpha=0.3)
+
+plt.tight_layout()
+
+plt.savefig(
+    f"{graficos}/05_accuracy_vs_face.png",
+    dpi=300
+)
+
+plt.close()
+
+# fundo corretas vs incorretas
+plt.figure(figsize=(12,6))
+
+plt.bar(
+    x - w/2,
+    df["nao_face_corretas"],
+    width=w,
+    label="Corretas"
+)
+
+plt.bar(
+    x + w/2,
+    df["nao_face_incorretas"],
+    width=w,
+    label="Incorretas"
+)
+
+plt.xticks(x, nomes)
+
+plt.ylabel("Ativação Face Externa/Fundo (%)")
+
+plt.title(
+    "Dependência de Contexto",
+    fontsize=14,
+    fontweight='bold'
+)
+
+plt.legend()
+
+plt.grid(axis='y', linestyle='--', alpha=0.3)
+
+plt.tight_layout()
+
+plt.savefig(
+    f"{graficos}/06_dependencia_contexto.png",
+    dpi=300
+)
+
+plt.close()
