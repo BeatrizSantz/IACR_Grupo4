@@ -5,9 +5,7 @@ from torch.utils.data import DataLoader
 from facenet_pytorch import InceptionResnetV1
 import time
 import pandas as pd 
-# ==========================================
 # CONFIGURAÇÕES
-# ==========================================
 historico = []
 
 DIR_TREINO = 'data/dataset_10_recortado/train'
@@ -23,9 +21,7 @@ contador_paciencia = 0
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'A usar o dispositivo: {device}')
 
-# ==========================================
 #PREPARAÇÃO DOS DADOS
-# ==========================================
 transformacoes = transforms.Compose([
     transforms.Resize((160, 160)),
     transforms.ToTensor(),
@@ -44,9 +40,7 @@ print(f'Imagens de validação: {len(dataset_val)}')
 loader_treino = DataLoader(dataset_treino, batch_size=BATCH_SIZE, shuffle=True)
 loader_val = DataLoader(dataset_val, batch_size=BATCH_SIZE, shuffle=False)
 
-# ==========================================
 # PREPARAR O MODELO
-# ==========================================
 print("\nA carregar o InceptionResnetV1 (FaceNet)...")
 modelo = InceptionResnetV1(pretrained='vggface2', classify=True).to(device)
 
@@ -56,20 +50,16 @@ for param in modelo.parameters():
 
 modelo.logits = nn.Linear(512, num_classes).to(device)
 
-# ==========================================
 # CONFIGURAR TREINO
-# ==========================================
 criterio = nn.CrossEntropyLoss()
 otimizador = optim.Adam(modelo.logits.parameters(), lr=0.001)
 
-# ==========================================
 # CICLO DE TREINO E VALIDAÇÃO
-# ==========================================
 
 for epoca in range(EPOCAS):
     inicio_epoca = time.time()
 
-    # --- FASE DE TREINO ---
+    # FASE DE TREINO
     modelo.train()
     loss_treino = 0.0
     acertos_treino = 0
@@ -91,10 +81,11 @@ for epoca in range(EPOCAS):
     acc_treino = acertos_treino / len(dataset_treino)
     loss_media_treino = loss_treino / len(dataset_treino)
 
-    # --- FASE DE VALIDAÇÃO ---
+    # FASE DE VALIDAÇÃO
     modelo.eval()
     loss_val = 0.0
-    acertos_val = 0 # Reiniciado
+    acertos_val = 0 
+    acertos_val = 0
 
     with torch.no_grad():
         for imagens, labels in loader_val:
@@ -136,17 +127,9 @@ for epoca in range(EPOCAS):
         print(f"\nTreino interrompido por Early Stopping na época {epoca + 1}!")
         break
 
-
-
-
-# ==========================================
-# GUARDAR O MODELO
-# ==========================================
-
 df = pd.DataFrame(historico)
 NOME_TESTE = "min10_dataset_frozen_recortado"
 caminho_csv = f"log_{NOME_TESTE}.csv"
 df.to_csv(caminho_csv, index=False)
 caminho_modelo = f"modelo_{NOME_TESTE}.pth"
 torch.save(modelo.state_dict(), caminho_modelo)
-print("Resultados guardados em CSV!")
