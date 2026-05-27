@@ -27,7 +27,7 @@ print(f'A usar o dispositivo: {device}')
 # ==========================================
 # PREPARAÇÃO DOS DADOS (SEM CORTAR)
 # ==========================================
-# Como combinámos, vamos apenas redimensionar para 160x160 mantendo o fundo
+
 transformacoes = transforms.Compose([
     transforms.Resize((160, 160)),
     transforms.ToTensor(),
