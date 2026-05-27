@@ -10,8 +10,8 @@ import pandas as pd
 # ==========================================
 historico = []
 
-DIR_TREINO = 'data/dataset_10/train'
-DIR_VALIDACAO = 'data/dataset_10/val'
+DIR_TREINO = 'data/dataset_10_recortado/train'
+DIR_VALIDACAO = 'data/dataset_10_recortado/val'
 
 BATCH_SIZE = 32
 EPOCAS = 50
@@ -94,7 +94,7 @@ for epoca in range(EPOCAS):
     # --- FASE DE VALIDAÇÃO ---
     modelo.eval()
     loss_val = 0.0
-    acertos_val = 0 # Reiniciado corretamente
+    acertos_val = 0 # Reiniciado
 
     with torch.no_grad():
         for imagens, labels in loader_val:
@@ -105,7 +105,7 @@ for epoca in range(EPOCAS):
 
             loss_val += loss.item() * imagens.size(0)
             _, previsoes = torch.max(outputs, 1)
-            # --- O QUE FALTA ESTAVA AQUI: ---
+
             acertos_val += torch.sum(previsoes == labels.data).item()
         # Cálculos finais da época
         acc_val = acertos_val / len(dataset_val)
@@ -144,7 +144,7 @@ for epoca in range(EPOCAS):
 # ==========================================
 
 df = pd.DataFrame(historico)
-NOME_TESTE = "min10_dataset_frozen"
+NOME_TESTE = "min10_dataset_frozen_recortado"
 caminho_csv = f"log_{NOME_TESTE}.csv"
 df.to_csv(caminho_csv, index=False)
 caminho_modelo = f"modelo_{NOME_TESTE}.pth"

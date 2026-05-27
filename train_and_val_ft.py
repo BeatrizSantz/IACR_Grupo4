@@ -11,8 +11,8 @@ import pandas as pd # Adiciona esta biblioteca
 # ==========================================
 historico = []
 
-DIR_TREINO = 'data/dataset_10/train'
-DIR_VALIDACAO = 'data/dataset_10/val'
+DIR_TREINO = 'data/dataset_5_recortado/train'
+DIR_VALIDACAO = 'data/dataset_5_recortado/val'
 
 BATCH_SIZE = 32
 EPOCAS = 50
@@ -146,7 +146,7 @@ for epoca in range(EPOCAS):
 # ==========================================
 
 df = pd.DataFrame(historico)
-NOME_TESTE = "min10_dataset_FT"
+NOME_TESTE = "min5_dataset_FT_recortado"
 caminho_csv = f"log_{NOME_TESTE}.csv"
 df.to_csv(caminho_csv, index=False)
 caminho_modelo = f"modelo_{NOME_TESTE}.pth"
