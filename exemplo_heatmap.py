@@ -13,6 +13,7 @@ pasta_output = "comparacoes"
 
 os.makedirs(pasta_output, exist_ok=True)
 
+# caminhos para os heatmaps gerados por cada modelo
 modelos = {
 
     "Min5 Frozen":
@@ -62,6 +63,7 @@ original = cv2.cvtColor(
     cv2.COLOR_BGR2RGB
 )
 
+# cria uma grelha 3x3 para mostrar a imagem original + 8 heatmaps
 fig, axs = plt.subplots(
     3,
     3,
@@ -81,6 +83,7 @@ axs[0].set_title(
 
 axs[0].axis("off")
 
+# percorre todos os modelos
 for idx, (nome_modelo, pasta_modelo) in enumerate(modelos.items()):
 
     caminho_heatmap = os.path.join(
